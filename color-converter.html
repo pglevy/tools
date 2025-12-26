@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Convert colors between HEX, RGB, HSL, and other formats. Supports multiple color spaces with live preview.">
+    <title>Color Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/culori@3.3.0/bundled/culori.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #e8ebf7 0%, #ede7f3 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .color-preview {
+            height: 120px;
+            margin: 8px 30px 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: background-color 0.2s ease;
+        }
+
+        .color-name {
+            margin: 30px 30px 8px 30px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.5px;
+        }
+
+        .formats {
+            padding: 0 30px 30px 30px;
+        }
+
+        .format-group {
+            margin-bottom: 20px;
+        }
+
+        .format-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            transition: border-color 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.copied {
+            background: #10b981;
+        }
+
+        button.copied svg {
+            display: none;
+        }
+
+        button.copied::after {
+            content: '✓';
+            font-size: 18px;
+        }
+
+        .error {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .color-name {
+                margin: 20px 20px 6px 20px;
+            }
+
+            .color-preview {
+                height: 100px;
+                margin: 6px 20px 15px 20px;
+            }
+
+            .formats {
+                padding: 0 20px 20px 20px;
+            }
+
+            input {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+
+            button {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Color Converter</h1>
+            <p>Convert between Hex, RGBA, and OKLCH formats</p>
+        </div>
+
+        <div class="color-name" id="colorName">-</div>
+
+        <div class="color-preview" id="colorPreview"></div>
+
+        <div class="formats">
+            <div class="format-group">
+                <label class="format-label" for="hexInput">Hex</label>
+                <div class="input-group">
+                    <input type="text" id="hexInput" placeholder="#FF5733" />
+                    <button onclick="copyToClipboard('hex')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                </div>
+                <div class="error" id="hexError"></div>
+            </div>
+
+            <div class="format-group">
+                <label class="format-label" for="rgbaInput">RGBA</label>
+                <div class="input-group">
+                    <input type="text" id="rgbaInput" placeholder="rgba(255, 87, 51, 1)" />
+                    <button onclick="copyToClipboard('rgba')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                </div>
+                <div class="error" id="rgbaError"></div>
+            </div>
+
+            <div class="format-group">
+                <label class="format-label" for="oklchInput">OKLCH</label>
+                <div class="input-group">
+                    <input type="text" id="oklchInput" placeholder="oklch(0.65 0.25 25)" />
+                    <button onclick="copyToClipboard('oklch')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                </div>
+                <div class="error" id="oklchError"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const hexInput = document.getElementById('hexInput');
+        const rgbaInput = document.getElementById('rgbaInput');
+        const oklchInput = document.getElementById('oklchInput');
+        const colorPreview = document.getElementById('colorPreview');
+
+        const hexError = document.getElementById('hexError');
+        const rgbaError = document.getElementById('rgbaError');
+        const oklchError = document.getElementById('oklchError');
+        const colorName = document.getElementById('colorName');
+
+        let isUpdating = false;
+
+        // CSS color names (140 standard colors)
+        const colorNames = {
+            'aliceblue': '#f0f8ff', 'antiquewhite': '#faebd7', 'aqua': '#00ffff', 'aquamarine': '#7fffd4',
+            'azure': '#f0ffff', 'beige': '#f5f5dc', 'bisque': '#ffe4c4', 'black': '#000000',
+            'blanchedalmond': '#ffebcd', 'blue': '#0000ff', 'blueviolet': '#8a2be2', 'brown': '#a52a2a',
+            'burlywood': '#deb887', 'cadetblue': '#5f9ea0', 'chartreuse': '#7fff00', 'chocolate': '#d2691e',
+            'coral': '#ff7f50', 'cornflowerblue': '#6495ed', 'cornsilk': '#fff8dc', 'crimson': '#dc143c',
+            'cyan': '#00ffff', 'darkblue': '#00008b', 'darkcyan': '#008b8b', 'darkgoldenrod': '#b8860b',
+            'darkgray': '#a9a9a9', 'darkgreen': '#006400', 'darkgrey': '#a9a9a9', 'darkkhaki': '#bdb76b',
+            'darkmagenta': '#8b008b', 'darkolivegreen': '#556b2f', 'darkorange': '#ff8c00', 'darkorchid': '#9932cc',
+            'darkred': '#8b0000', 'darksalmon': '#e9967a', 'darkseagreen': '#8fbc8f', 'darkslateblue': '#483d8b',
+            'darkslategray': '#2f4f4f', 'darkslategrey': '#2f4f4f', 'darkturquoise': '#00ced1', 'darkviolet': '#9400d3',
+            'deeppink': '#ff1493', 'deepskyblue': '#00bfff', 'dimgray': '#696969', 'dimgrey': '#696969',
+            'dodgerblue': '#1e90ff', 'firebrick': '#b22222', 'floralwhite': '#fffaf0', 'forestgreen': '#228b22',
+            'fuchsia': '#ff00ff', 'gainsboro': '#dcdcdc', 'ghostwhite': '#f8f8ff', 'gold': '#ffd700',
+            'goldenrod': '#daa520', 'gray': '#808080', 'green': '#008000', 'greenyellow': '#adff2f',
+            'grey': '#808080', 'honeydew': '#f0fff0', 'hotpink': '#ff69b4', 'indianred': '#cd5c5c',
+            'indigo': '#4b0082', 'ivory': '#fffff0', 'khaki': '#f0e68c', 'lavender': '#e6e6fa',
+            'lavenderblush': '#fff0f5', 'lawngreen': '#7cfc00', 'lemonchiffon': '#fffacd', 'lightblue': '#add8e6',
+            'lightcoral': '#f08080', 'lightcyan': '#e0ffff', 'lightgoldenrodyellow': '#fafad2', 'lightgray': '#d3d3d3',
+            'lightgreen': '#90ee90', 'lightgrey': '#d3d3d3', 'lightpink': '#ffb6c1', 'lightsalmon': '#ffa07a',
+            'lightseagreen': '#20b2aa', 'lightskyblue': '#87cefa', 'lightslategray': '#778899', 'lightslategrey': '#778899',
+            'lightsteelblue': '#b0c4de', 'lightyellow': '#ffffe0', 'lime': '#00ff00', 'limegreen': '#32cd32',
+            'linen': '#faf0e6', 'magenta': '#ff00ff', 'maroon': '#800000', 'mediumaquamarine': '#66cdaa',
+            'mediumblue': '#0000cd', 'mediumorchid': '#ba55d3', 'mediumpurple': '#9370db', 'mediumseagreen': '#3cb371',
+            'mediumslateblue': '#7b68ee', 'mediumspringgreen': '#00fa9a', 'mediumturquoise': '#48d1cc', 'mediumvioletred': '#c71585',
+            'midnightblue': '#191970', 'mintcream': '#f5fffa', 'mistyrose': '#ffe4e1', 'moccasin': '#ffe4b5',
+            'navajowhite': '#ffdead', 'navy': '#000080', 'oldlace': '#fdf5e6', 'olive': '#808000',
+            'olivedrab': '#6b8e23', 'orange': '#ffa500', 'orangered': '#ff4500', 'orchid': '#da70d6',
+            'palegoldenrod': '#eee8aa', 'palegreen': '#98fb98', 'paleturquoise': '#afeeee', 'palevioletred': '#db7093',
+            'papayawhip': '#ffefd5', 'peachpuff': '#ffdab9', 'peru': '#cd853f', 'pink': '#ffc0cb',
+            'plum': '#dda0dd', 'powderblue': '#b0e0e6', 'purple': '#800080', 'rebeccapurple': '#663399',
+            'red': '#ff0000', 'rosybrown': '#bc8f8f', 'royalblue': '#4169e1', 'saddlebrown': '#8b4513',
+            'salmon': '#fa8072', 'sandybrown': '#f4a460', 'seagreen': '#2e8b57', 'seashell': '#fff5ee',
+            'sienna': '#a0522d', 'silver': '#c0c0c0', 'skyblue': '#87ceeb', 'slateblue': '#6a5acd',
+            'slategray': '#708090', 'slategrey': '#708090', 'snow': '#fffafa', 'springgreen': '#00ff7f',
+            'steelblue': '#4682b4', 'tan': '#d2b48c', 'teal': '#008080', 'thistle': '#d8bfd8',
+            'tomato': '#ff6347', 'turquoise': '#40e0d0', 'violet': '#ee82ee', 'wheat': '#f5deb3',
+            'white': '#ffffff', 'whitesmoke': '#f5f5f5', 'yellow': '#ffff00', 'yellowgreen': '#9acd32'
+        };
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function colorDistance(color1, color2) {
+            const c1 = hexToRgb(color1);
+            const c2 = hexToRgb(color2);
+            if (!c1 || !c2) return Infinity;
+            return Math.sqrt(
+                Math.pow(c1.r - c2.r, 2) +
+                Math.pow(c1.g - c2.g, 2) +
+                Math.pow(c1.b - c2.b, 2)
+            );
+        }
+
+        function findClosestColorName(hexColor) {
+            let closestName = '';
+            let minDistance = Infinity;
+
+            for (const [name, hex] of Object.entries(colorNames)) {
+                const distance = colorDistance(hexColor, hex);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestName = name;
+                }
+            }
+
+            return closestName;
+        }
+
+        function updateColorName(hexColor) {
+            try {
+                const name = findClosestColorName(hexColor);
+                colorName.textContent = name || '-';
+            } catch (e) {
+                console.error('Error getting color name:', e);
+                colorName.textContent = '-';
+            }
+        }
+
+        function clearErrors() {
+            hexError.textContent = '';
+            rgbaError.textContent = '';
+            oklchError.textContent = '';
+        }
+
+        function updateFromHex() {
+            if (isUpdating) return;
+            isUpdating = true;
+            clearErrors();
+
+            let value = hexInput.value.trim();
+            if (!value) {
+                isUpdating = false;
+                return;
+            }
+
+            // Normalize hex value: remove all hashes, then add one
+            value = value.replace(/#/g, '');
+            if (value) {
+                value = '#' + value;
+                // Update input with normalized value
+                hexInput.value = value;
+            }
+
+            try {
+                const color = culori.parse(value);
+                if (!color) {
+                    hexError.textContent = 'Invalid hex color';
+                    isUpdating = false;
+                    return;
+                }
+
+                // Update RGBA
+                const rgb = culori.rgb(color);
+                rgbaInput.value = `rgba(${Math.round(rgb.r * 255)}, ${Math.round(rgb.g * 255)}, ${Math.round(rgb.b * 255)}, ${rgb.alpha !== undefined ? rgb.alpha : 1})`;
+
+                // Update OKLCH
+                const oklch = culori.oklch(color);
+                oklchInput.value = `oklch(${oklch.l.toFixed(4)} ${oklch.c.toFixed(4)} ${oklch.h ? oklch.h.toFixed(2) : 0})`;
+
+                // Update preview
+                const hexColor = culori.formatHex(color);
+                colorPreview.style.backgroundColor = hexColor;
+                
+                // Update color name
+                updateColorName(hexColor);
+            } catch (e) {
+                hexError.textContent = 'Invalid hex color';
+            }
+
+            isUpdating = false;
+        }
+
+        function updateFromRgba() {
+            if (isUpdating) return;
+            isUpdating = true;
+            clearErrors();
+
+            const value = rgbaInput.value.trim();
+            if (!value) {
+                isUpdating = false;
+                return;
+            }
+
+            try {
+                const color = culori.parse(value);
+                if (!color) {
+                    rgbaError.textContent = 'Invalid RGBA color';
+                    isUpdating = false;
+                    return;
+                }
+
+                // Update Hex
+                const hexColor = culori.formatHex(color);
+                hexInput.value = hexColor;
+
+                // Update OKLCH
+                const oklch = culori.oklch(color);
+                oklchInput.value = `oklch(${oklch.l.toFixed(4)} ${oklch.c.toFixed(4)} ${oklch.h ? oklch.h.toFixed(2) : 0})`;
+
+                // Update preview
+                colorPreview.style.backgroundColor = hexColor;
+                
+                // Update color name
+                updateColorName(hexColor);
+            } catch (e) {
+                rgbaError.textContent = 'Invalid RGBA color';
+            }
+
+            isUpdating = false;
+        }
+
+        function updateFromOklch() {
+            if (isUpdating) return;
+            isUpdating = true;
+            clearErrors();
+
+            const value = oklchInput.value.trim();
+            if (!value) {
+                isUpdating = false;
+                return;
+            }
+
+            try {
+                const color = culori.parse(value);
+                if (!color) {
+                    oklchError.textContent = 'Invalid OKLCH color';
+                    isUpdating = false;
+                    return;
+                }
+
+                // Update Hex
+                const hexColor = culori.formatHex(color);
+                hexInput.value = hexColor;
+
+                // Update RGBA
+                const rgb = culori.rgb(color);
+                rgbaInput.value = `rgba(${Math.round(rgb.r * 255)}, ${Math.round(rgb.g * 255)}, ${Math.round(rgb.b * 255)}, ${rgb.alpha !== undefined ? rgb.alpha : 1})`;
+
+                // Update preview
+                colorPreview.style.backgroundColor = hexColor;
+                
+                // Update color name
+                updateColorName(hexColor);
+            } catch (e) {
+                oklchError.textContent = 'Invalid OKLCH color';
+            }
+
+            isUpdating = false;
+        }
+
+        async function copyToClipboard(format) {
+            let value;
+            let button;
+
+            switch(format) {
+                case 'hex':
+                    value = hexInput.value;
+                    button = hexInput.nextElementSibling;
+                    break;
+                case 'rgba':
+                    value = rgbaInput.value;
+                    button = rgbaInput.nextElementSibling;
+                    break;
+                case 'oklch':
+                    value = oklchInput.value;
+                    button = oklchInput.nextElementSibling;
+                    break;
+            }
+
+            if (!value) return;
+
+            try {
+                await navigator.clipboard.writeText(value);
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                }, 1500);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+
+        // Select all text on focus
+        function selectAllOnFocus(event) {
+            event.target.select();
+        }
+
+        // Add event listeners
+        hexInput.addEventListener('input', updateFromHex);
+        rgbaInput.addEventListener('input', updateFromRgba);
+        oklchInput.addEventListener('input', updateFromOklch);
+
+        // Add focus listeners to select all
+        hexInput.addEventListener('focus', selectAllOnFocus);
+        rgbaInput.addEventListener('focus', selectAllOnFocus);
+        oklchInput.addEventListener('focus', selectAllOnFocus);
+
+        // Handle paste events
+        hexInput.addEventListener('paste', () => setTimeout(updateFromHex, 0));
+        rgbaInput.addEventListener('paste', () => setTimeout(updateFromRgba, 0));
+        oklchInput.addEventListener('paste', () => setTimeout(updateFromOklch, 0));
+
+        // Set initial color
+        hexInput.value = '#667eea';
+        updateFromHex();
+    </script>
+</body>
+</html>
