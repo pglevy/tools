@@ -112,11 +112,16 @@
         .upload-area {
             border: 3px dashed #667eea;
             border-radius: 12px;
-            padding: 40px;
+            padding: 60px 40px;
             text-align: center;
             background: #f8f9ff;
             cursor: pointer;
             transition: all 0.3s;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .upload-area:hover {
@@ -142,6 +147,10 @@
             height: auto;
             border-radius: 8px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .hidden {
+            display: none;
         }
 
         .grid-layout {
@@ -183,18 +192,7 @@
         <div class="grid-layout">
             <div class="controls">
                 <div class="control-group">
-                    <div class="upload-area" id="uploadArea">
-                        <p style="margin-bottom: 10px; font-size: 18px;">📋 Paste or Drop Image</p>
-                        <p style="color: #888; font-size: 14px;">Ctrl/Cmd + V to paste</p>
-                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                        <button onclick="document.getElementById('fileInput').click()" style="margin-top: 15px;">
-                            Or Choose File
-                        </button>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Window Style</label>
+                    <label for="windowStyle">Window Style</label>
                     <select id="windowStyle">
                         <option value="macos">macOS Window</option>
                         <option value="browser">Browser Chrome</option>
@@ -204,7 +202,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Background Type</label>
+                    <label for="bgType">Background Type</label>
                     <select id="bgType">
                         <option value="transparent">Transparent</option>
                         <option value="solid">Solid Color</option>
@@ -213,7 +211,7 @@
                 </div>
 
                 <div class="control-group" id="bgColorGroup" style="display: none;">
-                    <label>Background Color</label>
+                    <label for="bgColor">Background Color</label>
                     <div class="color-group">
                         <input type="color" id="bgColor" value="#f5f5f5">
                         <input type="text" id="bgColorHex" value="#f5f5f5" style="width: 100px;">
@@ -221,22 +219,22 @@
                 </div>
 
                 <div class="control-group">
-                    <label>Padding: <span class="range-value" id="paddingValue">60px</span></label>
-                    <input type="range" id="padding" min="0" max="200" value="60">
+                    <label for="padding">Padding: <span class="range-value" id="paddingValue">150px</span></label>
+                    <input type="range" id="padding" min="0" max="200" value="150">
                 </div>
 
                 <div class="control-group">
-                    <label>Shadow Blur: <span class="range-value" id="shadowValue">40px</span></label>
-                    <input type="range" id="shadowBlur" min="0" max="100" value="40">
+                    <label for="shadowBlur">Shadow Blur: <span class="range-value" id="shadowValue">100px</span></label>
+                    <input type="range" id="shadowBlur" min="0" max="100" value="100">
                 </div>
 
                 <div class="control-group">
-                    <label>Corner Radius: <span class="range-value" id="radiusValue">8px</span></label>
+                    <label for="cornerRadius">Corner Radius: <span class="range-value" id="radiusValue">8px</span></label>
                     <input type="range" id="cornerRadius" min="0" max="30" value="8">
                 </div>
 
                 <div class="control-group">
-                    <label>Scale</label>
+                    <label for="scale">Scale</label>
                     <select id="scale">
                         <option value="1">1x (Original)</option>
                         <option value="2" selected>2x (Retina)</option>
@@ -251,7 +249,15 @@
             </div>
 
             <div class="preview-container">
-                <canvas id="canvas"></canvas>
+                <div class="upload-area" id="uploadArea">
+                    <p style="margin-bottom: 10px; font-size: 24px;">📋 Paste or Drop Image</p>
+                    <p style="color: #888; font-size: 16px; margin-bottom: 20px;">Ctrl/Cmd + V to paste anywhere</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <button onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                </div>
+                <canvas id="canvas" class="hidden"></canvas>
             </div>
         </div>
     </div>
@@ -306,6 +312,11 @@
             img.onload = () => {
                 sourceImage = img;
                 renderScreenshot();
+
+                // Show canvas, hide upload area
+                document.getElementById('uploadArea').classList.add('hidden');
+                document.getElementById('canvas').classList.remove('hidden');
+
                 document.getElementById('copyBtn').disabled = false;
                 document.getElementById('downloadBtn').disabled = false;
             };
@@ -392,8 +403,9 @@
 
             // Draw shadow
             if (shadowBlur > 0) {
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
                 ctx.shadowBlur = shadowBlur;
+                ctx.shadowOffsetX = shadowBlur / 8;
                 ctx.shadowOffsetY = shadowBlur / 4;
             }
 
@@ -415,7 +427,7 @@
 
             // Draw window controls
             if (windowStyle === 'macos') {
-                const controlY = frameY + 15;
+                const controlY = frameY + 20;
                 const controlSize = 12;
                 const controlSpacing = 8;
                 
