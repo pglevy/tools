@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pull the text of any blog post or article as clean Markdown. Preview the extraction, strip images and link clutter, then copy or download — perfect for feeding references to AI agents.">
+  <title>Article to Markdown</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,600&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.6.0/Readability.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <style>
+    :root {
+      --paper: #f3edde;
+      --paper-deep: #e9e1cb;
+      --sheet: #fdfbf4;
+      --ink: #221d14;
+      --ink-muted: #6e6553;
+      --ink-faint: #a39a83;
+      --rule: #d5cbb2;
+      --red: #b23a2a;
+      --red-soft: #f0ded6;
+      --mono: 'IBM Plex Mono', 'Courier New', monospace;
+      --serif: 'Fraunces', Georgia, serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--serif);
+      background-color: var(--paper);
+      background-image:
+        radial-gradient(var(--rule) 0.75px, transparent 0.75px);
+      background-size: 22px 22px;
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 0 20px 80px;
+    }
+
+    .press {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Masthead ─────────────────────────────── */
+    .masthead {
+      padding-top: 28px;
+      animation: rise 0.5s ease both;
+    }
+
+    .masthead-slug {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      border-top: 3px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding: 7px 2px;
+    }
+
+    .masthead h1 {
+      font-size: clamp(2.4rem, 7vw, 4.2rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.02;
+      margin: 26px 0 14px;
+    }
+
+    .masthead h1 .pilcrow {
+      color: var(--red);
+      font-weight: 600;
+      margin-right: 0.08em;
+    }
+
+    .masthead .tagline {
+      font-style: italic;
+      font-size: 1.06rem;
+      color: var(--ink-muted);
+      max-width: 52ch;
+      line-height: 1.55;
+      margin-bottom: 34px;
+    }
+
+    /* ── Intake form ──────────────────────────── */
+    .intake {
+      animation: rise 0.5s 0.08s ease both;
+    }
+
+    .intake-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .url-field {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--sheet);
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      padding: 0 14px;
+    }
+
+    .url-field svg {
+      flex-shrink: 0;
+      color: var(--ink-faint);
+    }
+
+    .url-field input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--ink);
+      padding: 15px 0;
+      min-width: 0;
+    }
+
+    .url-field input::placeholder { color: var(--ink-faint); }
+
+    .url-field:focus-within {
+      box-shadow: 4px 4px 0 var(--red);
+    }
+
+    button {
+      font-family: var(--mono);
+      cursor: pointer;
+    }
+
+    .btn {
+      border: 2px solid var(--ink);
+      background: var(--ink);
+      color: var(--sheet);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 15px 22px;
+      box-shadow: 4px 4px 0 rgba(34, 29, 20, 0.28);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: var(--red); border-color: var(--red); }
+
+    .btn:active, .btn.working {
+      transform: translate(3px, 3px);
+      box-shadow: 1px 1px 0 rgba(34, 29, 20, 0.28);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .btn--ghost {
+      background: transparent;
+      color: var(--ink);
+      box-shadow: none;
+      border-width: 1.5px;
+      padding: 8px 14px;
+      font-size: 11.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .btn--ghost:hover { background: var(--ink); color: var(--sheet); }
+    .btn--ghost.flash { background: var(--red); border-color: var(--red); color: var(--sheet); }
+
+    /* ── Options ──────────────────────────────── */
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 18px;
+      margin: 20px 0 0;
+      font-family: var(--mono);
+    }
+
+    .options-label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .opt {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--ink-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .opt input {
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border: 1.5px solid var(--ink);
+      background: var(--sheet);
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      flex-shrink: 0;
+    }
+
+    .opt input::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      background: var(--red);
+      transform: scale(0);
+      transition: transform 0.1s ease;
+    }
+
+    .opt input:checked::before { transform: scale(1); }
+    .opt input:checked + span { color: var(--ink); }
+
+    /* ── Status line ──────────────────────────── */
+    .status {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      margin-top: 18px;
+      min-height: 20px;
+      color: var(--ink-muted);
+    }
+
+    .status.error { color: var(--red); }
+
+    .status .spinner {
+      display: inline-block;
+      animation: tick 1s steps(4) infinite;
+    }
+
+    @keyframes tick { to { transform: rotate(360deg); } }
+
+    /* ── Proof sheet (output) ─────────────────── */
+    .proof {
+      display: none;
+      margin-top: 30px;
+      animation: rise 0.4s ease both;
+    }
+
+    .proof.visible { display: block; }
+
+    .proof-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 3px double var(--ink);
+      padding-bottom: 10px;
+      margin-bottom: 0;
+    }
+
+    .proof-meta { min-width: 0; }
+
+    .proof-stamp {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--red);
+      border: 1.5px solid var(--red);
+      padding: 3px 8px;
+      transform: rotate(-1.5deg);
+      margin-bottom: 8px;
+    }
+
+    .proof-title {
+      font-size: 1.35rem;
+      font-weight: 600;
+      line-height: 1.25;
+      overflow-wrap: break-word;
+    }
+
+    .proof-byline {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      margin-top: 5px;
+      overflow-wrap: break-word;
+    }
+
+    .proof-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-top: 16px;
+    }
+
+    .tab {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 2px solid var(--ink);
+      border-bottom: none;
+      background: var(--paper-deep);
+      color: var(--ink-muted);
+      padding: 9px 18px;
+      margin-right: -2px;
+      position: relative;
+    }
+
+    .tab.active {
+      background: var(--sheet);
+      color: var(--ink);
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: -2px;
+      height: 2px;
+      background: var(--sheet);
+    }
+
+    .sheet {
+      background: var(--sheet);
+      border: 2px solid var(--ink);
+      box-shadow: 5px 5px 0 var(--paper-deep), 5px 5px 0 1.5px var(--ink);
+      position: relative;
+      z-index: 1;
+    }
+
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    #md-out {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      padding: 22px 24px;
+      max-height: 60vh;
+      overflow-y: auto;
+      tab-size: 2;
+    }
+
+    #preview-frame {
+      display: block;
+      width: 100%;
+      height: 60vh;
+      border: none;
+      background: var(--sheet);
+    }
+
+    /* Slug line under the sheet */
+    .slugline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 22px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      padding: 12px 4px 0;
+    }
+
+    .slugline b { color: var(--ink); font-weight: 600; }
+
+    /* ── Paste fallback ───────────────────────── */
+    .fallback {
+      margin-top: 34px;
+      animation: rise 0.5s 0.16s ease both;
+    }
+
+    .fallback summary {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .fallback summary:hover { color: var(--ink); }
+
+    .fallback-body {
+      margin-top: 14px;
+    }
+
+    .fallback-hint {
+      font-style: italic;
+      font-size: 0.92rem;
+      color: var(--ink-muted);
+      line-height: 1.55;
+      margin-bottom: 12px;
+      max-width: 62ch;
+    }
+
+    .fallback textarea {
+      width: 100%;
+      height: 130px;
+      background: var(--sheet);
+      border: 2px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+      padding: 12px 14px;
+      resize: vertical;
+      outline: none;
+    }
+
+    .fallback textarea:focus { box-shadow: 4px 4px 0 var(--red); }
+
+    .fallback .btn { margin-top: 12px; }
+
+    /* ── Footer ───────────────────────────────── */
+    .colophon {
+      margin-top: 60px;
+      border-top: 1px solid var(--rule);
+      padding-top: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--ink-faint);
+    }
+
+    .colophon a { color: var(--ink-muted); }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      .intake-row { flex-direction: column; }
+      .btn { padding: 14px 20px; }
+      .proof-actions { width: 100%; }
+      .proof-actions .btn--ghost { flex: 1; justify-content: center; }
+      #md-out { padding: 16px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="press">
+
+    <header class="masthead">
+      <div class="masthead-slug">
+        <span>pglevy / web-tools</span>
+        <span>galley proof edition</span>
+      </div>
+      <h1><span class="pilcrow">&para;</span>Article to Markdown</h1>
+      <p class="tagline">Pull the text out of any blog post or article as clean Markdown &mdash; gut-check the extraction, then copy or download it as a reference for your agents.</p>
+    </header>
+
+    <section class="intake">
+      <div class="intake-row">
+        <div class="url-field">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <input type="url" id="url-input" placeholder="https://example.com/some-article" spellcheck="false" autocomplete="off" autofocus>
+        </div>
+        <button class="btn" id="fetch-btn">Pull article</button>
+      </div>
+
+      <div class="options">
+        <span class="options-label">Cleaning &mdash;</span>
+        <label class="opt"><input type="checkbox" id="opt-strip-images" checked><span>Strip images</span></label>
+        <label class="opt"><input type="checkbox" id="opt-plain-links"><span>Links as plain text</span></label>
+        <label class="opt"><input type="checkbox" id="opt-front-matter" checked><span>Front matter</span></label>
+      </div>
+
+      <div class="status" id="status" role="status"></div>
+    </section>
+
+    <section class="proof" id="proof">
+      <div class="proof-head">
+        <div class="proof-meta">
+          <div class="proof-stamp">Proof &middot; ready to set</div>
+          <div class="proof-title" id="proof-title"></div>
+          <div class="proof-byline" id="proof-byline"></div>
+        </div>
+        <div class="proof-actions">
+          <button class="btn--ghost btn" id="copy-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span id="copy-label">Copy</span>
+          </button>
+          <button class="btn--ghost btn" id="download-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Download .md
+          </button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-pane="markdown">Markdown</button>
+        <button class="tab" data-pane="preview">Preview</button>
+      </div>
+
+      <div class="sheet">
+        <div class="pane active" id="pane-markdown"><pre id="md-out"></pre></div>
+        <div class="pane" id="pane-preview"><iframe id="preview-frame" sandbox="" title="Rendered Markdown preview"></iframe></div>
+      </div>
+
+      <div class="slugline">
+        <span><b id="stat-words">0</b> words</span>
+        <span><b id="stat-chars">0</b> chars</span>
+        <span>&asymp; <b id="stat-tokens">0</b> tokens</span>
+        <span id="stat-via"></span>
+      </div>
+    </section>
+
+    <details class="fallback" id="fallback">
+      <summary>Blocked? Paste the page HTML instead</summary>
+      <div class="fallback-body">
+        <p class="fallback-hint">Some sites refuse proxy fetches. As a fallback, open the article, view source (or use devtools: <code>copy(document.documentElement.outerHTML)</code>), and paste the HTML here. The URL field above is still used for resolving links and the front matter source.</p>
+        <textarea id="html-input" placeholder="&lt;html&gt;&hellip;" spellcheck="false"></textarea>
+        <button class="btn" id="paste-btn">Convert pasted HTML</button>
+      </div>
+    </details>
+
+    <footer class="colophon">
+      <p>Set entirely in your browser with <a href="https://github.com/mozilla/readability">Readability</a> (article extraction) and <a href="https://github.com/mixmark-io/turndown">Turndown</a> (Markdown conversion). Cross-origin pages are fetched through public CORS proxies (allorigins, corsproxy, codetabs), so the article URL passes through those services &mdash; everything after that stays local. <a href="https://github.com/pglevy/web-tools">View source on GitHub</a>.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    const state = {
+      articleHTML: null,   // Readability-extracted article body (HTML string)
+      title: '',
+      byline: '',
+      siteName: '',
+      published: '',
+      sourceUrl: '',
+      via: '',
+      markdown: '',
+    };
+
+    const PROXIES = [
+      { name: 'allorigins', wrap: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+      { name: 'corsproxy', wrap: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+      { name: 'codetabs', wrap: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+    ];
+
+    function setStatus(msg, isError = false) {
+      const el = $('status');
+      el.classList.toggle('error', isError);
+      el.innerHTML = msg;
+    }
+
+    function normalizeUrl(raw) {
+      let u = raw.trim();
+      if (!u) return null;
+      if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      try { return new URL(u).href; } catch { return null; }
+    }
+
+    async function fetchWithTimeout(url, ms = 20000) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (!text || text.length < 200) throw new Error('empty response');
+        return text;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function fetchArticleHtml(url) {
+      // Try a direct fetch first — some sites allow cross-origin reads.
+      try {
+        setStatus('<span class="spinner">&#10038;</span> Trying direct fetch&hellip;');
+        return { html: await fetchWithTimeout(url, 8000), via: 'direct fetch' };
+      } catch { /* expected for most sites; fall through to proxies */ }
+
+      for (const proxy of PROXIES) {
+        try {
+          setStatus(`<span class="spinner">&#10038;</span> Fetching via ${proxy.name}&hellip;`);
+          return { html: await fetchWithTimeout(proxy.wrap(url)), via: `via ${proxy.name}` };
+        } catch { /* try next proxy */ }
+      }
+      throw new Error('all fetch routes failed');
+    }
+
+    function extractArticle(html, url) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      // Anchor relative URLs so Readability can absolutize links and images.
+      if (url && !doc.querySelector('base')) {
+        const base = doc.createElement('base');
+        base.href = url;
+        doc.head.appendChild(base);
+      }
+      const article = new Readability(doc, { keepClasses: false }).parse();
+      if (!article || !article.content) throw new Error('no article content found');
+      return article;
+    }
+
+    function buildTurndown() {
+      const td = new TurndownService({
+        headingStyle: 'atx',
+        codeBlockStyle: 'fenced',
+        bulletListMarker: '-',
+        emDelimiter: '*',
+        hr: '---',
+      });
+      td.use(turndownPluginGfm.gfm);
+      if ($('opt-strip-images').checked) {
+        td.addRule('strip-images', {
+          filter: ['img', 'picture', 'figcaption'],
+          replacement: () => '',
+        });
+      }
+      if ($('opt-plain-links').checked) {
+        td.addRule('plain-links', {
+          filter: (node) => node.nodeName === 'A' && node.getAttribute('href'),
+          replacement: (content) => content,
+        });
+      }
+      return td;
+    }
+
+    function yamlQuote(s) {
+      return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\s+/g, ' ').trim() + '"';
+    }
+
+    function buildFrontMatter() {
+      const lines = ['---'];
+      if (state.title) lines.push(`title: ${yamlQuote(state.title)}`);
+      if (state.sourceUrl) lines.push(`source: ${state.sourceUrl}`);
+      if (state.byline) lines.push(`author: ${yamlQuote(state.byline)}`);
+      if (state.siteName) lines.push(`site: ${yamlQuote(state.siteName)}`);
+      if (state.published) {
+        const d = new Date(state.published);
+        lines.push(`published: ${isNaN(d) ? yamlQuote(state.published) : d.toISOString().slice(0, 10)}`);
+      }
+      lines.push(`captured: ${new Date().toISOString().slice(0, 10)}`);
+      lines.push('---');
+      return lines.join('\n');
+    }
+
+    function tidyMarkdown(md) {
+      return md
+        .replace(/\[\s*\]\((?:[^()]|\([^()]*\))*\)/g, '')  // links emptied by image stripping
+        .split('\n').map(l => l.replace(/\s+$/, '')).join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function convert() {
+      if (!state.articleHTML) return;
+      let body = tidyMarkdown(buildTurndown().turndown(state.articleHTML));
+
+      // Readability strips the page H1, so restore the title as a heading.
+      if (state.title && !body.startsWith('# ')) {
+        body = `# ${state.title}\n\n${body}`;
+      }
+
+      state.bodyMarkdown = body;
+      state.markdown = $('opt-front-matter').checked
+        ? `${buildFrontMatter()}\n\n${body}\n`
+        : `${body}\n`;
+
+      render();
+    }
+
+    function render() {
+      $('md-out').textContent = state.markdown;
+      $('proof-title').textContent = state.title || 'Untitled article';
+      $('proof-byline').textContent = [state.byline, state.siteName, state.sourceUrl ? new URL(state.sourceUrl).hostname : '']
+        .filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' — ');
+
+      const words = state.markdown.split(/\s+/).filter(Boolean).length;
+      $('stat-words').textContent = words.toLocaleString();
+      $('stat-chars').textContent = state.markdown.length.toLocaleString();
+      $('stat-tokens').textContent = Math.round(state.markdown.length / 4).toLocaleString();
+      $('stat-via').textContent = state.via;
+
+      renderPreview();
+      $('proof').classList.add('visible');
+    }
+
+    function renderPreview() {
+      // Sandboxed iframe (no scripts) so any raw HTML surviving conversion stays inert.
+      const previewCss = `
+        body { font-family: Georgia, serif; color: #221d14; background: #fdfbf4;
+               line-height: 1.65; padding: 26px 30px; max-width: 68ch; margin: 0 auto; }
+        h1, h2, h3, h4 { line-height: 1.25; margin: 1.4em 0 0.5em; } h1 { margin-top: 0.2em; }
+        a { color: #b23a2a; }
+        img { max-width: 100%; height: auto; }
+        pre { background: #f0ead9; padding: 14px; overflow-x: auto; font-size: 13px; }
+        code { background: #f0ead9; padding: 1px 4px; font-size: 0.9em; }
+        pre code { padding: 0; }
+        blockquote { border-left: 3px solid #b23a2a; margin-left: 0; padding-left: 16px; color: #6e6553; }
+        table { border-collapse: collapse; } th, td { border: 1px solid #d5cbb2; padding: 6px 10px; }
+        hr { border: none; border-top: 1px solid #d5cbb2; }`;
+      $('preview-frame').srcdoc =
+        `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${previewCss}</style></head><body>` +
+        marked.parse(state.bodyMarkdown || '') + '</body></html>';
+    }
+
+    async function pullArticle() {
+      const url = normalizeUrl($('url-input').value);
+      if (!url) { setStatus('Enter a valid URL first.', true); return; }
+
+      const btn = $('fetch-btn');
+      btn.disabled = true;
+      btn.classList.add('working');
+      btn.textContent = 'Pulling…';
+      try {
+        const { html, via } = await fetchArticleHtml(url);
+        applyExtraction(html, url, via);
+      } catch {
+        setStatus('Couldn’t fetch that page &mdash; the site may block proxies. Try the paste-HTML fallback below.', true);
+        $('fallback').open = true;
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('working');
+        btn.textContent = 'Pull article';
+      }
+    }
+
+    function applyExtraction(html, url, via) {
+      try {
+        const article = extractArticle(html, url);
+        state.articleHTML = article.content;
+        state.title = (article.title || '').trim();
+        state.byline = (article.byline || '').trim();
+        state.siteName = (article.siteName || '').trim();
+        state.published = article.publishedTime || '';
+        state.sourceUrl = url || '';
+        state.via = via;
+        convert();
+        setStatus('Extraction complete. Give the proof a read before you set it.');
+      } catch {
+        setStatus('Fetched the page, but couldn’t find readable article content in it.', true);
+      }
+    }
+
+    function copyMarkdown() {
+      navigator.clipboard.writeText(state.markdown).then(() => {
+        const btn = $('copy-btn');
+        $('copy-label').textContent = 'Copied ✓';
+        btn.classList.add('flash');
+        setTimeout(() => {
+          $('copy-label').textContent = 'Copy';
+          btn.classList.remove('flash');
+        }, 1400);
+      });
+    }
+
+    function downloadMarkdown() {
+      const slug = (state.title || 'article').toLowerCase()
+        .replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        .slice(0, 80) || 'article';
+      const blob = new Blob([state.markdown], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${slug}.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // ── Wiring ──────────────────────────────────
+    $('fetch-btn').addEventListener('click', pullArticle);
+    $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') pullArticle(); });
+    $('copy-btn').addEventListener('click', copyMarkdown);
+    $('download-btn').addEventListener('click', downloadMarkdown);
+
+    ['opt-strip-images', 'opt-plain-links', 'opt-front-matter'].forEach(id =>
+      $(id).addEventListener('change', convert));
+
+    document.querySelectorAll('.tab').forEach(tab =>
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+        document.querySelectorAll('.pane').forEach(p =>
+          p.classList.toggle('active', p.id === `pane-${tab.dataset.pane}`));
+      }));
+
+    $('paste-btn').addEventListener('click', () => {
+      const html = $('html-input').value.trim();
+      if (!html) { setStatus('Paste some HTML first.', true); return; }
+      applyExtraction(html, normalizeUrl($('url-input').value) || '', 'pasted html');
+    });
+  </script>
+</body>
+</html>
