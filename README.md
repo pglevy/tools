@@ -17,6 +17,7 @@ Inspired by [Simon Willison's tools](https://github.com/simonw/tools). See also 
 - **[Contact Catalog](https://pglevy.github.io/web-tools/vcf-contact-manager.html)**: Validate, view, and manage a contact list exported from a phone as a .vcf file. Flags missing names, malformed numbers/emails, and duplicates, with inline editing and VCF/CSV export.
 - **[Sailwind Stats](https://pglevy.github.io/web-tools/sailwind-stats.html)**: Combined dashboard showing npm downloads (prototyping template) and jsDelivr token requests (mockup skill) for the Sailwind design system.
 - **[Screenshot Generator](https://pglevy.github.io/web-tools/screenshot-generator.html)**: Create beautiful screenshots with customizable window frames, backgrounds, shadows, and padding. Paste, drop, or upload images to generate styled screenshots instantly.
+- **[Markdown Print](https://pglevy.github.io/web-tools/markdown-print.html)**: Drop a Markdown file to render it as a beautifully typeset page (Tufte-inspired typography) ready for printing to PDF. Press Esc to return.
 - **[Typographer's Palette](https://pglevy.github.io/web-tools/typographers-palette.html)**: A quick-reference for curly quotes, dashes, and special characters. Click any symbol to copy its HTML entity to your clipboard.
 
 ## Philosophy
