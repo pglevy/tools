@@ -39,6 +39,8 @@ Looking at the tools already in this repo:
 - Finished tools go in the root directory as `tool-name.html`
 - Work-in-progress files go in `gitignore/tools-in-progress/`
 - Update `README.md` when adding a new tool (add it to the Tools list with a description and live link)
+- Add new tools to index.html with appropriate tag. Reuse existing tags when possible.
+- IMPORTANT: Keep list of tools alphabetical in both README and index.html
 
 ## Source guidance (external reference)
 

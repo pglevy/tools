@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Drop a Markdown file to render it as a beautifully typeset page ready for printing to PDF.">
+    <title>Markdown Print</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&display=swap');
+
+        :root {
+            --font-serif: 'Crimson Pro', Palatino, 'Palatino Linotype', Georgia, serif;
+            --font-sans: 'Source Sans 3', Calibri, sans-serif;
+            --font-mono: 'JetBrains Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            --color-bg: #fffff8;
+            --color-text: #111;
+            --color-muted: #666;
+            --color-rule: #ccc;
+            --color-code-bg: #f7f7f2;
+            --color-link: #a00000;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-bg: #1a1a17;
+                --color-text: #e0dfd8;
+                --color-muted: #999;
+                --color-rule: #444;
+                --color-code-bg: #222220;
+                --color-link: #e8a0a0;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ===== DROP ZONE VIEW ===== */
+        body {
+            font-family: var(--font-serif);
+            background: var(--color-bg);
+            color: var(--color-text);
+            min-height: 100vh;
+        }
+
+        #drop-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            transition: opacity 0.3s ease;
+        }
+
+        #drop-view.hidden {
+            display: none;
+        }
+
+        .drop-zone {
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 4 / 3;
+            border: 2px dashed var(--color-rule);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2rem;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--color-text);
+            background: var(--color-code-bg);
+        }
+
+        .drop-zone svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--color-muted);
+            stroke-width: 1.5;
+            fill: none;
+            transition: stroke 0.2s ease;
+        }
+
+        .drop-zone:hover svg,
+        .drop-zone.drag-over svg {
+            stroke: var(--color-text);
+        }
+
+        .drop-zone p {
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            color: var(--color-muted);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .drop-zone p strong {
+            color: var(--color-text);
+            font-weight: 600;
+        }
+
+        .tool-title {
+            font-size: 1.6rem;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            margin-bottom: 2rem;
+            color: var(--color-muted);
+        }
+
+        /* ===== RENDERED VIEW ===== */
+        #render-view {
+            display: none;
+        }
+
+        #render-view.visible {
+            display: block;
+        }
+
+        /* Tufte-inspired article styles */
+        article {
+            width: 87.5%;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 4rem 0rem;
+            padding-left: 12.5%;
+        }
+
+        article h1 {
+            font-weight: 400;
+            margin-top: 4rem;
+            margin-bottom: 1.5rem;
+            font-size: 2.8rem;
+            line-height: 1.1;
+        }
+
+        article h1:first-child {
+            margin-top: 0;
+        }
+
+        article h2 {
+            font-weight: 400;
+            margin-top: 2.4rem;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            line-height: 1.15;
+        }
+
+        article h3 {
+            font-weight: 400;
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+            line-height: 1.2;
+        }
+
+        article h4, article h5, article h6 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-top: 1.6rem;
+            margin-bottom: 0.6rem;
+        }
+
+        article p, article li, article dd {
+            font-size: 1.3rem;
+            line-height: 1.6;
+        }
+
+        article p {
+            margin-top: 1.2rem;
+            margin-bottom: 1.2rem;
+            width: 55%;
+        }
+
+        article > ul, article > ol,
+        article > div > ul, article > div > ol {
+            width: 50%;
+            padding-left: 5%;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        article li {
+            margin-top: 0.3rem;
+        }
+
+        article li > ul, article li > ol {
+            margin-top: 0.3rem;
+        }
+
+        article blockquote {
+            margin: 1.5rem 0;
+            border-left: 3px solid var(--color-rule);
+            padding-left: 1.5rem;
+            width: 55%;
+        }
+
+        article blockquote p {
+            width: 100%;
+            font-style: italic;
+            color: var(--color-muted);
+        }
+
+        article hr {
+            width: 55%;
+            border: none;
+            border-top: 1px solid var(--color-rule);
+            margin: 2.5rem 0;
+        }
+
+        article a {
+            color: var(--color-link);
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+            text-decoration-thickness: 0.05em;
+        }
+
+        article a:hover {
+            text-decoration-thickness: 0.1em;
+        }
+
+        article code {
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+            background: var(--color-code-bg);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+        }
+
+        article pre {
+            width: 55%;
+            margin: 1.5rem 0;
+            padding: 1.2rem 1.5rem;
+            background: var(--color-code-bg);
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        article pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: block;
+        }
+
+        article img {
+            display: block;
+            width: 100%;
+            height: auto;
+            margin: 1.5rem 0;
+        }
+
+        article table {
+            width: 55%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        article th, article td {
+            padding: 0.5rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--color-rule);
+        }
+
+        article th {
+            font-weight: 600;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--color-muted);
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            top: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120%);
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            color: var(--color-bg);
+            background: var(--color-text);
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast kbd {
+            display: inline-block;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            background: rgba(255,255,255,0.15);
+            padding: 0.1em 0.5em;
+            border-radius: 3px;
+            margin: 0 0.15em;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 760px) {
+            article {
+                width: 90%;
+                padding-left: 5%;
+                padding-right: 5%;
+            }
+
+            article p, article blockquote, article pre,
+            article > ul, article > ol,
+            article > div > ul, article > div > ol,
+            article table, article img {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+
+        /* ===== PRINT ===== */
+        @media print {
+            .toast { display: none; }
+
+            body {
+                font-size: 12pt;
+            }
+
+            article {
+                width: 100%;
+                max-width: 100%;
+                padding: 1in 1.5in;
+            }
+
+            article p, article blockquote, article pre,
+            article > ul, article > ol,
+            article > div > ul, article > div > ol,
+            article table {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            article img {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            article h1, article h2, article h3, article h4, article h5, article h6 {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+
+            article img, article pre, article blockquote, article table {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            article ul, article ol {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            article p {
+                orphans: 3;
+                widows: 3;
+            }
+
+            article pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+
+            article a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            article a::after {
+                content: " (" attr(href) ")";
+                font-size: 0.8em;
+                color: var(--color-muted);
+            }
+
+            article a[href^="#"]::after,
+            article a[href^="javascript"]::after {
+                content: "";
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Drop zone landing -->
+    <div id="drop-view">
+        <h1 class="tool-title">Markdown Print</h1>
+        <div class="drop-zone" id="drop-zone">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="18" x2="12" y2="12" stroke-linecap="round"/>
+                <polyline points="9 15 12 12 15 15" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p><strong>Drop a .md file or folder</strong><br>or click to select a file</p>
+        </div>
+    </div>
+
+    <!-- Rendered markdown view -->
+    <div id="render-view">
+        <article id="article"></article>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast">Press <kbd>Esc</kbd> to exit</div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" accept=".md,.markdown,.txt" hidden>
+
+    <script>
+        const dropView = document.getElementById('drop-view');
+        const renderView = document.getElementById('render-view');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const article = document.getElementById('article');
+        const toast = document.getElementById('toast');
+
+        // Map of relative paths → object URLs for images in a dropped folder
+        let assetMap = {};
+
+        // Configure marked
+        marked.setOptions({
+            breaks: false,
+            gfm: true
+        });
+
+        // --- Drop zone interactions ---
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleDrop(e.dataTransfer);
+        });
+
+        // Also handle drag on the whole page
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (renderView.classList.contains('visible')) return;
+            handleDrop(e.dataTransfer);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleSingleFile(file);
+        });
+
+        // --- Drop handling: detect folder vs single file ---
+        async function handleDrop(dataTransfer) {
+            const items = [...dataTransfer.items];
+            const entries = items
+                .map(item => item.webkitGetAsEntry ? item.webkitGetAsEntry() : null)
+                .filter(Boolean);
+
+            // Check if any entry is a directory
+            const hasDirectory = entries.some(e => e.isDirectory);
+
+            if (hasDirectory) {
+                // Folder drop — traverse everything
+                try {
+                    const files = await getAllFiles(entries);
+                    if (files.length > 0) {
+                        handleFolderFiles(files);
+                    } else {
+                        alert('Could not read any files from the folder. Try running from a local server (e.g., npx serve).');
+                    }
+                } catch (err) {
+                    console.error('Error reading folder:', err);
+                    alert('Could not read folder. If using file://, try running from a local server instead:\n\nnpx serve .');
+                }
+            } else if (entries.length > 1) {
+                // Multiple files dropped
+                try {
+                    const files = await getAllFiles(entries);
+                    handleFolderFiles(files);
+                } catch (err) {
+                    console.error('Error reading files:', err);
+                }
+            } else {
+                // Single file drop
+                const file = dataTransfer.files[0];
+                if (file) handleSingleFile(file);
+            }
+        }
+
+        // Recursively read all files from directory entries
+        async function getAllFiles(entries) {
+            const files = [];
+
+            async function readEntry(entry, parentPath) {
+                if (entry.isFile) {
+                    try {
+                        const file = await new Promise((resolve, reject) => {
+                            entry.file(resolve, reject);
+                        });
+                        files.push({ file, path: parentPath + entry.name });
+                    } catch (err) {
+                        // Skip files that can't be read (encoding errors, too large, etc.)
+                        console.warn('Skipping file:', parentPath + entry.name, err.message);
+                    }
+                } else if (entry.isDirectory) {
+                    const dirPath = parentPath + entry.name + '/';
+                    const reader = entry.createReader();
+                    let allEntries = [];
+                    let batch;
+                    do {
+                        batch = await new Promise((resolve, reject) => {
+                            reader.readEntries(resolve, reject);
+                        });
+                        allEntries = allEntries.concat([...batch]);
+                    } while (batch.length > 0);
+
+                    for (const sub of allEntries) {
+                        await readEntry(sub, dirPath);
+                    }
+                }
+            }
+
+            for (const entry of entries) {
+                await readEntry(entry, '');
+            }
+            return files;
+        }
+
+        // Process a folder of files: find .md, build asset map
+        function handleFolderFiles(files) {
+            console.log('Files found:', files.map(f => f.path));
+
+            // Find the first .md file
+            const mdFile = files.find(f =>
+                /\.(md|markdown)$/i.test(f.path)
+            );
+
+            if (!mdFile) {
+                alert('No .md file found in the dropped folder.');
+                return;
+            }
+
+            console.log('Using markdown file:', mdFile.path);
+
+            // Determine the base directory (folder containing the .md)
+            const lastSlash = mdFile.path.lastIndexOf('/');
+            const mdDir = lastSlash >= 0 ? mdFile.path.substring(0, lastSlash + 1) : '';
+
+            // Revoke old object URLs
+            Object.values(assetMap).forEach(url => URL.revokeObjectURL(url));
+            assetMap = {};
+
+            // Build asset map: relative path from .md location → blob URL
+            for (const f of files) {
+                if (f === mdFile) continue;
+                // Get path relative to the .md file's directory
+                let relativePath = f.path;
+                if (mdDir && relativePath.startsWith(mdDir)) {
+                    relativePath = relativePath.substring(mdDir.length);
+                }
+                // Only map image/media files
+                if (/\.(png|jpg|jpeg|gif|svg|webp|avif|bmp|ico|mp4|webm)$/i.test(f.file.name)) {
+                    assetMap[relativePath] = URL.createObjectURL(f.file);
+                }
+            }
+
+            console.log('Asset map:', Object.keys(assetMap));
+
+            // Read and render the markdown
+            const reader = new FileReader();
+            reader.onload = (e) => renderMarkdown(e.target.result);
+            reader.readAsText(mdFile.file);
+        }
+
+        // --- Single file (no folder context) ---
+        function handleSingleFile(file) {
+            Object.values(assetMap).forEach(url => URL.revokeObjectURL(url));
+            assetMap = {};
+
+            const reader = new FileReader();
+            reader.onload = (e) => renderMarkdown(e.target.result);
+            reader.readAsText(file);
+        }
+
+        // --- Render ---
+        function renderMarkdown(md) {
+            article.innerHTML = marked.parse(md);
+
+            // Resolve relative image paths from asset map
+            if (Object.keys(assetMap).length > 0) {
+                article.querySelectorAll('img').forEach(img => {
+                    const src = img.getAttribute('src');
+                    if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('blob:')) {
+                        // Normalize: strip leading ./
+                        const normalized = src.replace(/^\.\//, '');
+                        if (assetMap[normalized]) {
+                            img.src = assetMap[normalized];
+                        }
+                    }
+                });
+            }
+
+            dropView.classList.add('hidden');
+            renderView.classList.add('visible');
+            showToast();
+        }
+
+        // --- Toast ---
+        function showToast() {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- Escape to exit ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && renderView.classList.contains('visible')) {
+                renderView.classList.remove('visible');
+                dropView.classList.remove('hidden');
+                article.innerHTML = '';
+                fileInput.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
